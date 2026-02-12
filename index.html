@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Blue Flower Garden</title>
+    <style>
+        body, html { margin: 0; padding: 0; overflow: hidden; background: #ffffff; }
+        canvas { display: block; cursor: crosshair; }
+    </style>
+</head>
+<body>
+    <canvas id="gardenCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('gardenCanvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        // MATCH THESE TO YOUR FILENAMES
+        const imageSources = ['flower1.png', 'flower2.png', 'flower3.png'];
+
+        const loadedImages = [];
+        imageSources.forEach(src => {
+            const img = new Image();
+            img.src = src;
+            img.onload = () => loadedImages.push(img);
+        });
+
+        let garden = [];
+
+        class GrowingFlower {
+            constructor(x, y) {
+                this.x = x;
+                this.targetY = y;
+                this.groundY = canvas.height;
+                this.growth = 0; 
+                this.flowerScale = 0; 
+                this.opacity = 0;
+                this.img = loadedImages[Math.floor(Math.random() * loadedImages.length)];
+                this.maxSize = 100; // You can make this bigger or smaller
+                this.curveLean = (Math.random() - 0.5) * 150; 
+                
+                this.leaves = [];
+                for(let i = 0; i < 3; i++) {
+                    this.leaves.push({
+                        t: 0.2 + (Math.random() * 0.5),
+                        side: Math.random() > 0.5 ? 1 : -1,
+                        length: 30,
+                        angle: 0.6
+                    });
+                }
+            }
+
+            getBezierPoint(t, p0, p1, p2) {
+                return (1 - t) * (1 - t) * p0 + 2 * (1 - t) * t * p1 + t * t * p2;
+            }
+
+            update() {
+                if (this.growth < 1) {
+                    this.growth += 0.04; // Speed of stem growth
+                } else if (this.flowerScale < 1) {
+                    this.flowerScale += 0.08; // Speed of flower pop-in
+                    this.opacity += 0.1;
+                }
+            }
+
+            draw() {
+                const cpX = this.x + this.curveLean; 
+                const cpY = (this.targetY + this.groundY) / 2; 
+
+                ctx.save();
+                
+                // Draw Stem
+                ctx.beginPath();
+                ctx.strokeStyle = '#1a3d17'; 
+                ctx.lineWidth = 5;
+                ctx.lineCap = 'round';
+                ctx.moveTo(this.x, this.groundY);
+                for (let i = 0; i <= this.growth; i += 0.01) {
+                    const tx = this.getBezierPoint(i, this.x, cpX, this.x);
+                    const ty = this.getBezierPoint(i, this.groundY, cpY, this.targetY);
+                    ctx.lineTo(tx, ty);
+                }
+                ctx.stroke();
+
+                // Draw Leaves
+                this.leaves.forEach(leaf => {
+                    if (this.growth > leaf.t) {
+                        const lx = this.getBezierPoint(leaf.t, this.x, cpX, this.x);
+                        const ly = this.getBezierPoint(leaf.t, this.groundY, cpY, this.targetY);
+                        ctx.save();
+                        ctx.translate(lx, ly);
+                        ctx.rotate(leaf.side * leaf.angle);
+                        ctx.fillStyle = '#2d5a27';
+                        ctx.beginPath();
+                        ctx.ellipse(leaf.length/2, 0, leaf.length/2, 7, 0, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.restore();
+                    }
+                });
+
+                // Draw Flower
+                if (this.growth >= 1 && this.img) {
+                    ctx.globalAlpha = this.opacity;
+                    const s = this.maxSize * this.flowerScale;
+                    ctx.drawImage(this.img, this.x - s/2, this.targetY - s/2, s, s);
+                }
+                ctx.restore();
+            }
+        }
+
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            garden.forEach(f => { f.update(); f.draw(); });
+            requestAnimationFrame(animate);
+        }
+
+        canvas.addEventListener('click', (e) => {
+            if (loadedImages.length > 0) garden.push(new GrowingFlower(e.clientX, e.clientY));
+        });
+
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+
+        animate();
+    </script>
+</body>
+</html>
