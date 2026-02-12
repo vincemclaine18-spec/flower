@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>10-Image PNG Garden - No Repeat</title>
+    <title>11-Image PNG Garden - Skip 5th Click</title>
     <style>
         body, html { margin: 0; padding: 0; overflow: hidden; background: #ffffff; }
         canvas { display: block; cursor: crosshair; }
@@ -41,11 +41,13 @@
         const ctx = canvas.getContext('2d');
         const clearBtn = document.getElementById('clearBtn');
         let flowers = [];
+        let clickCount = 0; // Added to track the 5th click
 
-        // --- IMAGE REPOSITORY (UPDATED TO 10) ---
+        // --- IMAGE REPOSITORY (UPDATED TO 11) ---
         const imageSources = [
             'flower1.png', 'flower2.png', 'flower3.png', 'flower4.png', 'flower5.png',
-            'flower6.png', 'flower7.png', 'flower8.png', 'flower9.png', 'flower10.png'
+            'flower6.png', 'flower7.png', 'flower8.png', 'flower9.png', 'flower10.png',
+            'flower11.png'
         ];
         
         const loadedImages = [];
@@ -62,7 +64,6 @@
         });
 
         function shuffleQueue() {
-            // Fisher-Yates shuffle for a truly random 10-image deck
             imageQueue = [...loadedImages];
             for (let i = imageQueue.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
@@ -91,7 +92,6 @@
                 this.scale = 0;
                 this.opacity = 0;
                 
-                // Every stem gets a random curve lean
                 this.curve = (Math.random() - 0.5) * 200;
                 this.growthSpeed = 0.025 + Math.random() * 0.015;
                 this.popSpeed = 0.06;
@@ -112,7 +112,6 @@
             getPoint(t) {
                 const cpX = this.x + this.curve;
                 const cpY = (this.targetY + this.groundY) / 2;
-                // Standard Quadratic Bezier Formula
                 const x = (1 - t) * (1 - t) * this.x + 2 * (1 - t) * t * cpX + t * t * this.x;
                 const y = (1 - t) * (1 - t) * this.groundY + 2 * (1 - t) * t * cpY + t * t * this.targetY;
                 return { x, y };
@@ -179,13 +178,23 @@
             requestAnimationFrame(loop);
         }
 
+        // --- UPDATED CLICK LISTENER ---
         canvas.addEventListener('mousedown', (e) => {
+            clickCount++;
+            
+            // Skip logic for the 5th click
+            if (clickCount === 5) {
+                console.log("5th click ignored.");
+                return; 
+            }
+
             flowers.push(new Flower(e.clientX, e.clientY));
         });
 
         clearBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             flowers = [];
+            clickCount = 0; // Reset counter so the skip resets too
         });
 
         loop();
