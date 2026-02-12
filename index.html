@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>6-Image PNG Garden</title>
+    <title>6-Image PNG Garden - No Repeat</title>
     <style>
         body, html { margin: 0; padding: 0; overflow: hidden; background: #ffffff; }
         canvas { display: block; cursor: crosshair; }
@@ -42,20 +42,35 @@
         const clearBtn = document.getElementById('clearBtn');
         let flowers = [];
 
-        // --- UPDATED TO 6 IMAGES ---
+        // --- IMAGE REPOSITORY ---
         const imageSources = [
             'flower1.png', 'flower2.png', 'flower3.png',
             'flower4.png', 'flower5.png', 'flower6.png'
         ];
         
         const loadedImages = [];
+        let imageQueue = []; // This will handle the no-repeat logic
 
         imageSources.forEach((src) => {
             const img = new Image();
             img.src = src;
-            img.onload = () => loadedImages.push(img);
+            img.onload = () => {
+                loadedImages.push(img);
+                // Shuffle when the first batch is ready
+                if (loadedImages.length === imageSources.length) shuffleQueue();
+            };
             img.onerror = () => console.warn("Image not found: " + src);
         });
+
+        // Function to shuffle the images so they don't repeat until the loop ends
+        function shuffleQueue() {
+            imageQueue = [...loadedImages].sort(() => Math.random() - 0.5);
+        }
+
+        function getNextImage() {
+            if (imageQueue.length === 0) shuffleQueue();
+            return imageQueue.pop();
+        }
 
         function resize() {
             canvas.width = window.innerWidth;
@@ -72,17 +87,14 @@
                 this.scale = 0;
                 this.opacity = 0;
                 
-                // Randomly vary the look and timing
+                // Curve logic applied to every stem (including the first)
                 this.curve = (Math.random() - 0.5) * 180;
                 this.growthSpeed = 0.02 + Math.random() * 0.02;
                 this.popSpeed = 0.05 + Math.random() * 0.05;
                 
-                // Randomly pick from the 6 images
-                this.img = loadedImages.length > 0 
-                    ? loadedImages[Math.floor(Math.random() * loadedImages.length)] 
-                    : null;
+                // Get image from the non-repeating queue
+                this.img = getNextImage();
                 
-                // Random leaf positioning
                 this.leaves = [];
                 const leafCount = 2 + Math.floor(Math.random() * 2);
                 for(let i=0; i<leafCount; i++) {
@@ -112,7 +124,7 @@
             }
 
             draw() {
-                // 1. Draw Stem
+                // Stem
                 ctx.beginPath();
                 ctx.lineWidth = 4;
                 ctx.strokeStyle = '#1a3d17';
@@ -124,7 +136,7 @@
                 }
                 ctx.stroke();
 
-                // 2. Draw Leaves
+                // Leaves
                 this.leaves.forEach(leaf => {
                     if (this.growth > leaf.t) {
                         const p = this.getPoint(leaf.t);
@@ -139,15 +151,13 @@
                     }
                 });
 
-                // 3. Draw the PNG
+                // The PNG Flower
                 if (this.growth >= 1 && this.img) {
                     const p = this.getPoint(1);
                     ctx.save();
                     ctx.translate(p.x, p.y);
                     ctx.scale(this.scale, this.scale);
                     ctx.globalAlpha = Math.min(this.opacity, 1);
-                    
-                    // Display size of 110px
                     ctx.drawImage(this.img, -55, -55, 110, 110); 
                     ctx.restore();
                 }
