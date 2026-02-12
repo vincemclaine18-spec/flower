@@ -3,26 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PNG Flower Garden</title>
+    <title>6-Image PNG Garden</title>
     <style>
         body, html { margin: 0; padding: 0; overflow: hidden; background: #ffffff; }
         canvas { display: block; cursor: crosshair; }
         
-        /* Minimalist Clear Button */
         #clearBtn {
             position: absolute;
             top: 25px;
             right: 25px;
-            padding: 8px 16px;
-            background: transparent;
+            padding: 10px 20px;
+            background: rgba(255, 255, 255, 0.9);
             border: 1.5px solid #2d5a27;
             color: #2d5a27;
             font-family: 'Helvetica', sans-serif;
-            font-size: 12px;
+            font-size: 11px;
             text-transform: uppercase;
             letter-spacing: 2px;
             cursor: pointer;
-            border-radius: 20px;
+            border-radius: 30px;
             transition: 0.3s;
             z-index: 100;
         }
@@ -34,7 +33,7 @@
     </style>
 </head>
 <body>
-    <button id="clearBtn">Clear Garden</button>
+    <button id="clearBtn">Reset Garden</button>
     <canvas id="gardenCanvas"></canvas>
 
     <script>
@@ -43,15 +42,19 @@
         const clearBtn = document.getElementById('clearBtn');
         let flowers = [];
 
-        // Ensure these 3 files are in your folder as .png
-        const imageSources = ['flower1.png', 'flower2.png', 'flower3.png'];
+        // --- UPDATED TO 6 IMAGES ---
+        const imageSources = [
+            'flower1.png', 'flower2.png', 'flower3.png',
+            'flower4.png', 'flower5.png', 'flower6.png'
+        ];
+        
         const loadedImages = [];
 
         imageSources.forEach((src) => {
             const img = new Image();
             img.src = src;
             img.onload = () => loadedImages.push(img);
-            img.onerror = () => console.log("Missing: " + src);
+            img.onerror = () => console.warn("Image not found: " + src);
         });
 
         function resize() {
@@ -68,18 +71,29 @@
                 this.growth = 0; 
                 this.scale = 0;
                 this.opacity = 0;
-                this.curve = (Math.random() - 0.5) * 160; // More variety in curve
+                
+                // Randomly vary the look and timing
+                this.curve = (Math.random() - 0.5) * 180;
+                this.growthSpeed = 0.02 + Math.random() * 0.02;
+                this.popSpeed = 0.05 + Math.random() * 0.05;
+                
+                // Randomly pick from the 6 images
                 this.img = loadedImages.length > 0 
                     ? loadedImages[Math.floor(Math.random() * loadedImages.length)] 
                     : null;
                 
-                this.leaves = [
-                    { t: 0.3 + Math.random() * 0.1, side: 1, size: 25 },
-                    { t: 0.6 + Math.random() * 0.1, side: -1, size: 22 }
-                ];
+                // Random leaf positioning
+                this.leaves = [];
+                const leafCount = 2 + Math.floor(Math.random() * 2);
+                for(let i=0; i<leafCount; i++) {
+                    this.leaves.push({
+                        t: 0.2 + (i * 0.25) + (Math.random() * 0.1),
+                        side: Math.random() > 0.5 ? 1 : -1,
+                        size: 20 + Math.random() * 10
+                    });
+                }
             }
 
-            // Path calculation for the stem
             getPoint(t) {
                 const cpX = this.x + this.curve;
                 const cpY = (this.targetY + canvas.height) / 2;
@@ -90,15 +104,15 @@
 
             update() {
                 if (this.growth < 1) {
-                    this.growth += 0.035; 
+                    this.growth += this.growthSpeed; 
                 } else if (this.scale < 1) {
-                    this.scale += 0.07; 
-                    this.opacity += 0.08;
+                    this.scale += this.popSpeed; 
+                    this.opacity += 0.1;
                 }
             }
 
             draw() {
-                // 1. Stem
+                // 1. Draw Stem
                 ctx.beginPath();
                 ctx.lineWidth = 4;
                 ctx.strokeStyle = '#1a3d17';
@@ -110,13 +124,13 @@
                 }
                 ctx.stroke();
 
-                // 2. Leaves
+                // 2. Draw Leaves
                 this.leaves.forEach(leaf => {
                     if (this.growth > leaf.t) {
                         const p = this.getPoint(leaf.t);
                         ctx.save();
                         ctx.translate(p.x, p.y);
-                        ctx.rotate(leaf.side * (0.5 + Math.random() * 0.2));
+                        ctx.rotate(leaf.side * 0.8);
                         ctx.fillStyle = '#2d5a27';
                         ctx.beginPath();
                         ctx.ellipse(leaf.size/2, 0, leaf.size/2, 6, 0, 0, Math.PI * 2);
@@ -125,20 +139,16 @@
                     }
                 });
 
-                // 3. PNG Image
+                // 3. Draw the PNG
                 if (this.growth >= 1 && this.img) {
                     const p = this.getPoint(1);
                     ctx.save();
                     ctx.translate(p.x, p.y);
                     ctx.scale(this.scale, this.scale);
-                    ctx.globalAlpha = this.opacity;
+                    ctx.globalAlpha = Math.min(this.opacity, 1);
                     
-                    // Optional: Soft shadow for PNG depth
-                    ctx.shadowColor = 'rgba(0,0,0,0.05)';
-                    ctx.shadowBlur = 10;
-
-                    // Centering the PNG (Assumes 120px display size)
-                    ctx.drawImage(this.img, -60, -60, 120, 120); 
+                    // Display size of 110px
+                    ctx.drawImage(this.img, -55, -55, 110, 110); 
                     ctx.restore();
                 }
             }
