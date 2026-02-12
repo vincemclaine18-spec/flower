@@ -3,130 +3,155 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Blue Flower Garden</title>
+    <title>Interactive Animated Garden</title>
     <style>
-        body, html { margin: 0; padding: 0; overflow: hidden; background: #ffffff; }
+        body, html { margin: 0; padding: 0; overflow: hidden; background: #ffffff; font-family: sans-serif; }
         canvas { display: block; cursor: crosshair; }
+        .info { position: absolute; top: 10px; left: 10px; color: #888; pointer-events: none; }
     </style>
 </head>
 <body>
+    <div class="info">Click to grow blue flowers</div>
     <canvas id="gardenCanvas"></canvas>
 
     <script>
         const canvas = document.getElementById('gardenCanvas');
         const ctx = canvas.getContext('2d');
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
+        let flowers = [];
 
-        // MATCH THESE TO YOUR FILENAMES
-        const imageSources = ['flower1.png', 'flower2.png', 'flower3.png'];
+        // --- IMAGE DATA SECTION ---
+        // If you have your images, you can put the Base64 string or URL here.
+        // I have left them empty so the fallback "drawing" kicks in first!
+        const imageSources = [
+            '', // Image 1
+            '', // Image 2
+            ''  // Image 3
+        ];
 
         const loadedImages = [];
-        imageSources.forEach(src => {
-            const img = new Image();
-            img.src = src;
-            img.onload = () => loadedImages.push(img);
+        imageSources.forEach((src, i) => {
+            if(src) {
+                const img = new Image();
+                img.src = src;
+                img.onload = () => loadedImages[i] = img;
+            }
         });
 
-        let garden = [];
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
 
-        class GrowingFlower {
+        class Flower {
             constructor(x, y) {
                 this.x = x;
                 this.targetY = y;
-                this.groundY = canvas.height;
-                this.growth = 0; 
-                this.flowerScale = 0; 
+                this.currentY = canvas.height;
+                this.growth = 0; // 0 to 1
+                this.scale = 0;
                 this.opacity = 0;
-                this.img = loadedImages[Math.floor(Math.random() * loadedImages.length)];
-                this.maxSize = 100; // You can make this bigger or smaller
-                this.curveLean = (Math.random() - 0.5) * 150; 
+                this.curve = (Math.random() - 0.5) * 100;
+                this.img = loadedImages.length > 0 ? loadedImages[Math.floor(Math.random() * loadedImages.length)] : null;
                 
-                this.leaves = [];
-                for(let i = 0; i < 3; i++) {
-                    this.leaves.push({
-                        t: 0.2 + (Math.random() * 0.5),
-                        side: Math.random() > 0.5 ? 1 : -1,
-                        length: 30,
-                        angle: 0.6
-                    });
-                }
+                // Random leaf positions
+                this.leaves = [
+                    { t: 0.3, side: 1, size: 20 + Math.random() * 10 },
+                    { t: 0.6, side: -1, size: 20 + Math.random() * 10 }
+                ];
             }
 
-            getBezierPoint(t, p0, p1, p2) {
-                return (1 - t) * (1 - t) * p0 + 2 * (1 - t) * t * p1 + t * t * p2;
+            // Calculate point on a curve
+            getPoint(t) {
+                const cpX = this.x + this.curve;
+                const cpY = (this.targetY + canvas.height) / 2;
+                const x = (1 - t) * (1 - t) * this.x + 2 * (1 - t) * t * cpX + t * t * this.x;
+                const y = (1 - t) * (1 - t) * canvas.height + 2 * (1 - t) * t * cpY + t * t * this.targetY;
+                return { x, y };
             }
 
             update() {
                 if (this.growth < 1) {
-                    this.growth += 0.04; // Speed of stem growth
-                } else if (this.flowerScale < 1) {
-                    this.flowerScale += 0.08; // Speed of flower pop-in
+                    this.growth += 0.03; // Speed of stem growing up
+                } else if (this.scale < 1) {
+                    this.scale += 0.1; // Speed of flower popping
                     this.opacity += 0.1;
                 }
             }
 
             draw() {
-                const cpX = this.x + this.curveLean; 
-                const cpY = (this.targetY + this.groundY) / 2; 
-
-                ctx.save();
-                
-                // Draw Stem
+                // 1. Draw Stem
                 ctx.beginPath();
-                ctx.strokeStyle = '#1a3d17'; 
-                ctx.lineWidth = 5;
+                ctx.lineWidth = 4;
+                ctx.strokeStyle = '#1e3d1a';
                 ctx.lineCap = 'round';
-                ctx.moveTo(this.x, this.groundY);
+                ctx.moveTo(this.x, canvas.height);
+                
                 for (let i = 0; i <= this.growth; i += 0.01) {
-                    const tx = this.getBezierPoint(i, this.x, cpX, this.x);
-                    const ty = this.getBezierPoint(i, this.groundY, cpY, this.targetY);
-                    ctx.lineTo(tx, ty);
+                    const p = this.getPoint(i);
+                    ctx.lineTo(p.x, p.y);
                 }
                 ctx.stroke();
 
-                // Draw Leaves
+                // 2. Draw Leaves
                 this.leaves.forEach(leaf => {
                     if (this.growth > leaf.t) {
-                        const lx = this.getBezierPoint(leaf.t, this.x, cpX, this.x);
-                        const ly = this.getBezierPoint(leaf.t, this.groundY, cpY, this.targetY);
+                        const p = this.getPoint(leaf.t);
                         ctx.save();
-                        ctx.translate(lx, ly);
-                        ctx.rotate(leaf.side * leaf.angle);
+                        ctx.translate(p.x, p.y);
+                        ctx.rotate(leaf.side * 0.7);
                         ctx.fillStyle = '#2d5a27';
                         ctx.beginPath();
-                        ctx.ellipse(leaf.length/2, 0, leaf.length/2, 7, 0, 0, Math.PI * 2);
+                        ctx.ellipse(leaf.size/2, 0, leaf.size/2, 6, 0, 0, Math.PI * 2);
                         ctx.fill();
                         ctx.restore();
                     }
                 });
 
-                // Draw Flower
-                if (this.growth >= 1 && this.img) {
+                // 3. Draw Flower Head
+                if (this.growth >= 1) {
+                    const p = this.getPoint(1);
+                    ctx.save();
+                    ctx.translate(p.x, p.y);
+                    ctx.scale(this.scale, this.scale);
                     ctx.globalAlpha = this.opacity;
-                    const s = this.maxSize * this.flowerScale;
-                    ctx.drawImage(this.img, this.x - s/2, this.targetY - s/2, s, s);
+
+                    if (this.img) {
+                        ctx.drawImage(this.img, -40, -40, 80, 80);
+                    } else {
+                        // Procedural Blue Flower (Fallback)
+                        ctx.fillStyle = '#3498db';
+                        for(let i=0; i<5; i++) {
+                            ctx.rotate(Math.PI * 2 / 5);
+                            ctx.beginPath();
+                            ctx.ellipse(15, 0, 20, 10, 0, 0, Math.PI*2);
+                            ctx.fill();
+                        }
+                        ctx.fillStyle = '#f1c40f';
+                        ctx.beginPath();
+                        ctx.arc(0, 0, 8, 0, Math.PI*2);
+                        ctx.fill();
+                    }
+                    ctx.restore();
                 }
-                ctx.restore();
             }
         }
 
-        function animate() {
+        function loop() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            garden.forEach(f => { f.update(); f.draw(); });
-            requestAnimationFrame(animate);
+            flowers.forEach(f => {
+                f.update();
+                f.draw();
+            });
+            requestAnimationFrame(loop);
         }
 
         canvas.addEventListener('click', (e) => {
-            if (loadedImages.length > 0) garden.push(new GrowingFlower(e.clientX, e.clientY));
+            flowers.push(new Flower(e.clientX, e.clientY));
         });
 
-        window.addEventListener('resize', () => {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-        });
-
-        animate();
+        loop();
     </script>
 </body>
 </html>
