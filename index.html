@@ -128,7 +128,10 @@
             img.onload = () => {
                 loadedImages[index] = img;
                 if (index < 11) {
-                    createOptionUI(img, index);
+                    // Logic to skip flower5 (index 4) in the UI toolbar
+                    if(index !== 4) {
+                        createOptionUI(img, index);
+                    }
                     if (index === 0) selectFlower(0);
                 }
             };
@@ -140,7 +143,7 @@
             div.id = 'opt-' + index;
             div.onclick = (e) => { 
                 e.stopPropagation(); 
-                isSequential = false; // Turn off sequence if manual choice is made
+                isSequential = false;
                 seqBtn.classList.remove('active');
                 selectFlower(index); 
             };
@@ -176,8 +179,6 @@
                 this.curve = (Math.random() - 0.5) * 200;
                 this.growthSpeed = 0.025 + Math.random() * 0.015;
                 this.popSpeed = 0.06;
-                
-                // Use the sequential image if provided, else current selection
                 this.img = forcedImg || selectedImage;
 
                 this.leaves = [];
@@ -329,7 +330,7 @@
             requestAnimationFrame(loop);
         }
 
-        // Handle Click Logic
+        // Handle Click Logic with 5th Flower Skip Logic
         canvas.addEventListener('mousedown', (e) => {
             if (isBouquet) return; 
 
@@ -337,27 +338,31 @@
             let y = e.clientY;
 
             if (isSequential) {
-                // Pick next in sequence
+                // LOGIC FOR THE 5th: If index is 4 (flower5.png), skip to 5
+                if (sequenceIndex === 4) {
+                    sequenceIndex = 5;
+                }
+
                 const flowerImg = loadedImages[sequenceIndex];
                 flowers.push(new Flower(x, y, flowerImg));
                 
-                // Update loop sequence
                 sequenceIndex = (sequenceIndex + 1) % loadedImages.length;
                 
-                // Update UI to show what's next
+                // Ensure we don't land on 4 for the next UI highlight either
+                if (sequenceIndex === 4) sequenceIndex = 5;
+
                 selectFlower(sequenceIndex);
             } else {
                 flowers.push(new Flower(x, y));
             }
         });
 
-        // Sequence Mode Toggle
         seqBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             isSequential = !isSequential;
             seqBtn.classList.toggle('active');
             if (isSequential) {
-                sequenceIndex = 0; // Reset loop to start
+                sequenceIndex = 0; 
                 selectFlower(0);
             }
         });
