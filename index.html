@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>11-Image PNG Garden - Bouquet Mode</title>
+    <title>11-Image PNG Garden - Baby Blue Bouquet</title>
     <style>
         body, html { margin: 0; padding: 0; overflow: hidden; background: #ffffff; }
         canvas { display: block; cursor: crosshair; }
@@ -101,6 +101,7 @@
         let clickCount = 0; 
         let selectedImage = null;
         let isBouquet = false;
+        let wrapOpacity = 0; 
 
         const imageSources = [
             'flower1.png', 'flower2.png', 'flower3.png', 'flower4.png', 'flower5.png',
@@ -202,19 +203,44 @@
                     this.opacity += 0.1;
                 }
 
-                // Bouquet Animation Logic
                 if (isBouquet) {
                     const centerX = canvas.width / 2;
-                    const centerY = canvas.height * 0.7;
-                    this.x += (centerX - this.x) * 0.05;
-                    this.targetY += (centerY - 150 - this.targetY) * 0.05;
-                    this.groundY += (centerY - this.groundY) * 0.05;
-                    this.curve *= 0.95; // Straighten stems slightly
+                    const centerY = canvas.height * 0.75; 
+                    
+                    const index = flowers.indexOf(this);
+                    const total = Math.min(flowers.length, 100);
+                    
+                    const maxSpread = 110; 
+                    const angleStep = total > 1 ? maxSpread / (total - 1) : 0;
+                    const targetAngle = (index * angleStep) - (maxSpread / 2);
+                    
+                    const radius = 230; 
+                    const rad = (targetAngle - 90) * (Math.PI / 180);
+                    
+                    const tx = centerX + Math.cos(rad) * radius;
+                    const ty = centerY + Math.sin(rad) * radius;
+
+                    this.x += (tx - this.x) * 0.07;
+                    this.targetY += (ty - this.targetY) * 0.07;
+                    this.groundY += (centerY - this.groundY) * 0.07;
+                    this.curve *= 0.9; 
+                } else {
+                    this.x += (this.originX - this.x) * 0.05;
+                    this.groundY += (canvas.height - this.groundY) * 0.05;
                 }
             }
 
             draw() {
                 ctx.save();
+                
+                if (isBouquet && this.growth >= 1) {
+                    const p = this.getPoint(1);
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, 60 * this.scale, 0, Math.PI * 2);
+                    ctx.fillStyle = '#ffffff'; 
+                    ctx.fill();
+                }
+
                 ctx.beginPath();
                 ctx.lineWidth = 4.5;
                 ctx.strokeStyle = '#1a3d17';
@@ -253,8 +279,63 @@
             }
         }
 
+        function drawWrap() {
+            if (wrapOpacity <= 0) return;
+            
+            const cx = canvas.width / 2;
+            const cy = canvas.height * 0.75;
+            
+            ctx.save();
+            ctx.globalAlpha = wrapOpacity;
+
+            // Outer Baby Blue Wrap (#89CFF0)
+            ctx.fillStyle = '#89CFF0';
+            ctx.beginPath();
+            ctx.moveTo(cx, cy);
+            ctx.lineTo(cx - 240, cy - 200);
+            ctx.lineTo(cx - 180, cy - 300);
+            ctx.lineTo(cx, cy - 120);
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.moveTo(cx, cy);
+            ctx.lineTo(cx + 240, cy - 200);
+            ctx.lineTo(cx + 180, cy - 300);
+            ctx.lineTo(cx, cy - 120);
+            ctx.fill();
+
+            // Inner Silk Fold (Lighter Baby Blue - #B2DAFA)
+            ctx.fillStyle = '#B2DAFA';
+            ctx.beginPath();
+            ctx.moveTo(cx, cy);
+            ctx.quadraticCurveTo(cx - 120, cy - 140, cx - 100, cy - 220);
+            ctx.lineTo(cx + 100, cy - 220);
+            ctx.quadraticCurveTo(cx + 120, cy - 140, cx, cy);
+            ctx.fill();
+            
+            // Ribbon Pivot Point
+            ctx.fillStyle = '#E0F2F1';
+            ctx.beginPath();
+            ctx.arc(cx, cy, 18, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = '#4682B4'; // Steel Blue
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            ctx.restore();
+        }
+
         function loop() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            if (isBouquet && flowers.length > 0) {
+                wrapOpacity = Math.min(wrapOpacity + 0.05, 1);
+            } else {
+                wrapOpacity = Math.max(wrapOpacity - 0.05, 0);
+            }
+
+            drawWrap(); 
+
             flowers.forEach(f => {
                 f.update();
                 f.draw();
@@ -263,9 +344,8 @@
         }
 
         canvas.addEventListener('mousedown', (e) => {
-            if (isBouquet) return; // Disable planting while in bouquet mode
+            if (isBouquet) return; 
             clickCount++;
-            if (clickCount === 5) return; 
             flowers.push(new Flower(e.clientX, e.clientY));
         });
 
@@ -274,6 +354,8 @@
             flowers = [];
             clickCount = 0;
             isBouquet = false;
+            wrapOpacity = 0;
+            bouquetBtn.innerText = "Bundle Bouquet";
         });
 
         bouquetBtn.addEventListener('click', (e) => {
