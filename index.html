@@ -30,9 +30,49 @@
             color: white;
             box-shadow: 0 4px 15px rgba(0,0,0,0.1);
         }
+
+        /* --- ADDED SELECTOR BOX STYLES --- */
+        #toolbar {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 8px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 8px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            border: 1px solid #ddd;
+            z-index: 100;
+        }
+        .flower-option {
+            width: 45px;
+            height: 45px;
+            border: 2px solid #eee;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #fff;
+            overflow: hidden;
+        }
+        .flower-option img {
+            width: 35px;
+            height: 35px;
+            object-fit: contain;
+        }
+        .flower-option.selected {
+            border-color: #2d5a27;
+            background: #e8f5e9;
+        }
     </style>
 </head>
 <body>
+    <div id="toolbar"></div>
+
     <button id="clearBtn">Reset Garden</button>
     <canvas id="gardenCanvas"></canvas>
 
@@ -40,8 +80,10 @@
         const canvas = document.getElementById('gardenCanvas');
         const ctx = canvas.getContext('2d');
         const clearBtn = document.getElementById('clearBtn');
+        const toolbar = document.getElementById('toolbar'); // Added
         let flowers = [];
-        let clickCount = 0; // Added to track the 5th click
+        let clickCount = 0; 
+        let selectedImage = null; // Added to track selection
 
         // --- IMAGE REPOSITORY (UPDATED TO 11) ---
         const imageSources = [
@@ -53,15 +95,45 @@
         const loadedImages = [];
         let imageQueue = []; 
 
-        imageSources.forEach((src) => {
+        imageSources.forEach((src, index) => {
             const img = new Image();
             img.src = src;
             img.onload = () => {
-                loadedImages.push(img);
-                if (loadedImages.length === imageSources.length) shuffleQueue();
+                loadedImages[index] = img;
+                
+                // ADDED: Create exactly 10 boxes for the UI
+                if (index < 10) {
+                    createOptionUI(img, index);
+                    if (index === 0) selectFlower(0); // Default to first
+                }
+
+                if (loadedImages.filter(n => n).length === imageSources.length) shuffleQueue();
             };
             img.onerror = () => console.warn("Image not found: " + src);
         });
+
+        // --- ADDED UI FUNCTIONS ---
+        function createOptionUI(img, index) {
+            const div = document.createElement('div');
+            div.className = 'flower-option';
+            div.id = 'opt-' + index;
+            div.onclick = (e) => {
+                e.stopPropagation();
+                selectFlower(index);
+            };
+            
+            const previewImg = document.createElement('img');
+            previewImg.src = img.src;
+            div.appendChild(previewImg);
+            toolbar.appendChild(div);
+        }
+
+        function selectFlower(index) {
+            document.querySelectorAll('.flower-option').forEach(el => el.classList.remove('selected'));
+            const selectedEl = document.getElementById('opt-' + index);
+            if(selectedEl) selectedEl.classList.add('selected');
+            selectedImage = loadedImages[index];
+        }
 
         function shuffleQueue() {
             imageQueue = [...loadedImages];
@@ -96,7 +168,8 @@
                 this.growthSpeed = 0.025 + Math.random() * 0.015;
                 this.popSpeed = 0.06;
                 
-                this.img = getNextImage();
+                // UPDATED: Use selected image if available, otherwise fallback to random
+                this.img = selectedImage || getNextImage();
                 
                 this.leaves = [];
                 const leafCount = 2 + Math.floor(Math.random() * 2);
@@ -128,7 +201,6 @@
 
             draw() {
                 ctx.save();
-                // 1. Stem
                 ctx.beginPath();
                 ctx.lineWidth = 4.5;
                 ctx.strokeStyle = '#1a3d17';
@@ -140,7 +212,6 @@
                 }
                 ctx.stroke();
 
-                // 2. Leaves
                 this.leaves.forEach(leaf => {
                     if (this.growth > leaf.t) {
                         const p = this.getPoint(leaf.t);
@@ -155,7 +226,6 @@
                     }
                 });
 
-                // 3. Flower Head
                 if (this.growth >= 1 && this.img) {
                     const p = this.getPoint(1);
                     ctx.save();
@@ -178,11 +248,9 @@
             requestAnimationFrame(loop);
         }
 
-        // --- UPDATED CLICK LISTENER ---
         canvas.addEventListener('mousedown', (e) => {
             clickCount++;
             
-            // Skip logic for the 5th click
             if (clickCount === 5) {
                 console.log("5th click ignored.");
                 return; 
@@ -194,7 +262,7 @@
         clearBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             flowers = [];
-            clickCount = 0; // Reset counter so the skip resets too
+            clickCount = 0; 
         });
 
         loop();
