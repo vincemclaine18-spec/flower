@@ -110,10 +110,10 @@
         let isBouquet = false;
         let wrapOpacity = 0; 
         
-        // NEW STATES
         let isSequential = false;
         let sequenceIndex = 0;
 
+        // flower5.png stays in the code but will be skipped by the logic
         const imageSources = [
             'flower1.png', 'flower2.png', 'flower3.png', 'flower4.png', 'flower5.png',
             'flower6.png', 'flower7.png', 'flower8.png', 'flower9.png', 'flower10.png',
@@ -128,8 +128,8 @@
             img.onload = () => {
                 loadedImages[index] = img;
                 if (index < 11) {
-                    // Logic to skip flower5 (index 4) in the UI toolbar
-                    if(index !== 4) {
+                    // Hide flower5 from the toolbar
+                    if (index !== 4) {
                         createOptionUI(img, index);
                     }
                     if (index === 0) selectFlower(0);
@@ -330,7 +330,7 @@
             requestAnimationFrame(loop);
         }
 
-        // Handle Click Logic with 5th Flower Skip Logic
+        // Logic for skipping the 5th flower but still growing the stem with the 6th
         canvas.addEventListener('mousedown', (e) => {
             if (isBouquet) return; 
 
@@ -338,18 +338,22 @@
             let y = e.clientY;
 
             if (isSequential) {
-                // LOGIC FOR THE 5th: If index is 4 (flower5.png), skip to 5
+                // If it's time for the 5th flower (index 4), jump to the 6th (index 5)
                 if (sequenceIndex === 4) {
                     sequenceIndex = 5;
                 }
 
+                // Plant the stem with the flower image (which is now index 5, not 4)
                 const flowerImg = loadedImages[sequenceIndex];
                 flowers.push(new Flower(x, y, flowerImg));
                 
+                // Move to the next index
                 sequenceIndex = (sequenceIndex + 1) % loadedImages.length;
                 
-                // Ensure we don't land on 4 for the next UI highlight either
-                if (sequenceIndex === 4) sequenceIndex = 5;
+                // If the next click would land on 4, jump to 5 early
+                if (sequenceIndex === 4) {
+                    sequenceIndex = 5;
+                }
 
                 selectFlower(sequenceIndex);
             } else {
