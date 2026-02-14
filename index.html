@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>11-Image PNG Garden - Sequential Loop</title>
+    <title>11-Image PNG Garden - No Wrap</title>
     <style>
         body, html { margin: 0; padding: 0; overflow: hidden; background: #ffffff; }
         canvas { display: block; cursor: crosshair; }
@@ -91,7 +91,6 @@
 
     <div id="controls">
         <button id="seqBtn" class="btn">Sequential Random</button>
-        <button id="bouquetBtn" class="btn">Bundle Bouquet</button>
         <button id="clearBtn" class="btn">Reset Garden</button>
     </div>
 
@@ -101,19 +100,14 @@
         const canvas = document.getElementById('gardenCanvas');
         const ctx = canvas.getContext('2d');
         const clearBtn = document.getElementById('clearBtn');
-        const bouquetBtn = document.getElementById('bouquetBtn');
         const seqBtn = document.getElementById('seqBtn');
         const toolbar = document.getElementById('toolbar');
         
         let flowers = [];
         let selectedImage = null;
-        let isBouquet = false;
-        let wrapOpacity = 0; 
-        
         let isSequential = false;
         let sequenceIndex = 0;
 
-        // flower5.png stays in the code but will be skipped by the logic
         const imageSources = [
             'flower1.png', 'flower2.png', 'flower3.png', 'flower4.png', 'flower5.png',
             'flower6.png', 'flower7.png', 'flower8.png', 'flower9.png', 'flower10.png',
@@ -128,7 +122,6 @@
             img.onload = () => {
                 loadedImages[index] = img;
                 if (index < 11) {
-                    // Hide flower5 from the toolbar
                     if (index !== 4) {
                         createOptionUI(img, index);
                     }
@@ -207,40 +200,13 @@
                     this.scale += this.popSpeed; 
                     this.opacity += 0.1;
                 }
-
-                if (isBouquet) {
-                    const centerX = canvas.width / 2;
-                    const centerY = canvas.height * 0.75; 
-                    const index = flowers.indexOf(this);
-                    const total = Math.min(flowers.length, 100);
-                    const maxSpread = 110; 
-                    const angleStep = total > 1 ? maxSpread / (total - 1) : 0;
-                    const targetAngle = (index * angleStep) - (maxSpread / 2);
-                    const radius = 230; 
-                    const rad = (targetAngle - 90) * (Math.PI / 180);
-                    const tx = centerX + Math.cos(rad) * radius;
-                    const ty = centerY + Math.sin(rad) * radius;
-
-                    this.x += (tx - this.x) * 0.07;
-                    this.targetY += (ty - this.targetY) * 0.07;
-                    this.groundY += (centerY - this.groundY) * 0.07;
-                    this.curve *= 0.9; 
-                } else {
-                    this.x += (this.originX - this.x) * 0.05;
-                    this.groundY += (canvas.height - this.groundY) * 0.05;
-                }
+                // Removed bouquet movement logic here
+                this.x += (this.originX - this.x) * 0.05;
+                this.groundY += (canvas.height - this.groundY) * 0.05;
             }
 
             draw() {
                 ctx.save();
-                if (isBouquet && this.growth >= 1) {
-                    const p = this.getPoint(1);
-                    ctx.beginPath();
-                    ctx.arc(p.x, p.y, 60 * this.scale, 0, Math.PI * 2);
-                    ctx.fillStyle = '#ffffff'; 
-                    ctx.fill();
-                }
-
                 ctx.beginPath();
                 ctx.lineWidth = 4.5;
                 ctx.strokeStyle = '#1a3d17';
@@ -279,50 +245,8 @@
             }
         }
 
-        function drawWrap() {
-            if (wrapOpacity <= 0) return;
-            const cx = canvas.width / 2;
-            const cy = canvas.height * 0.75;
-            ctx.save();
-            ctx.globalAlpha = wrapOpacity;
-            ctx.fillStyle = '#89CFF0';
-            ctx.beginPath();
-            ctx.moveTo(cx, cy);
-            ctx.lineTo(cx - 240, cy - 200);
-            ctx.lineTo(cx - 180, cy - 300);
-            ctx.lineTo(cx, cy - 120);
-            ctx.fill();
-            ctx.beginPath();
-            ctx.moveTo(cx, cy);
-            ctx.lineTo(cx + 240, cy - 200);
-            ctx.lineTo(cx + 180, cy - 300);
-            ctx.lineTo(cx, cy - 120);
-            ctx.fill();
-            ctx.fillStyle = '#B2DAFA';
-            ctx.beginPath();
-            ctx.moveTo(cx, cy);
-            ctx.quadraticCurveTo(cx - 120, cy - 140, cx - 100, cy - 220);
-            ctx.lineTo(cx + 100, cy - 220);
-            ctx.quadraticCurveTo(cx + 120, cy - 140, cx, cy);
-            ctx.fill();
-            ctx.fillStyle = '#E0F2F1';
-            ctx.beginPath();
-            ctx.arc(cx, cy, 18, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.strokeStyle = '#4682B4';
-            ctx.lineWidth = 2;
-            ctx.stroke();
-            ctx.restore();
-        }
-
         function loop() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            if (isBouquet && flowers.length > 0) {
-                wrapOpacity = Math.min(wrapOpacity + 0.05, 1);
-            } else {
-                wrapOpacity = Math.max(wrapOpacity - 0.05, 0);
-            }
-            drawWrap(); 
             flowers.forEach(f => {
                 f.update();
                 f.draw();
@@ -330,31 +254,23 @@
             requestAnimationFrame(loop);
         }
 
-        // Logic for skipping the 5th flower but still growing the stem with the 6th
         canvas.addEventListener('mousedown', (e) => {
-            if (isBouquet) return; 
-
             let x = e.clientX;
             let y = e.clientY;
 
             if (isSequential) {
-                // If it's time for the 5th flower (index 4), jump to the 6th (index 5)
                 if (sequenceIndex === 4) {
-                    sequenceIndex = 5;
+                    sequenceIndex = 5; 
                 }
 
-                // Plant the stem with the flower image (which is now index 5, not 4)
                 const flowerImg = loadedImages[sequenceIndex];
                 flowers.push(new Flower(x, y, flowerImg));
                 
-                // Move to the next index
                 sequenceIndex = (sequenceIndex + 1) % loadedImages.length;
                 
-                // If the next click would land on 4, jump to 5 early
                 if (sequenceIndex === 4) {
                     sequenceIndex = 5;
                 }
-
                 selectFlower(sequenceIndex);
             } else {
                 flowers.push(new Flower(x, y));
@@ -374,16 +290,7 @@
         clearBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             flowers = [];
-            isBouquet = false;
-            wrapOpacity = 0;
             sequenceIndex = 0;
-            bouquetBtn.innerText = "Bundle Bouquet";
-        });
-
-        bouquetBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            isBouquet = !isBouquet;
-            bouquetBtn.innerText = isBouquet ? "Release Garden" : "Bundle Bouquet";
         });
 
         loop();
