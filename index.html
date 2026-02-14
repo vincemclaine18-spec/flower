@@ -3,15 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>11-Image PNG Garden - Skip 5th Click</title>
+    <title>11-Image PNG Garden - Bouquet Mode</title>
     <style>
         body, html { margin: 0; padding: 0; overflow: hidden; background: #ffffff; }
         canvas { display: block; cursor: crosshair; }
         
-        #clearBtn {
+        #controls {
             position: absolute;
             top: 25px;
             right: 25px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 100;
+        }
+
+        .btn {
             padding: 10px 20px;
             background: rgba(255, 255, 255, 0.9);
             border: 1.5px solid #2d5a27;
@@ -23,15 +30,15 @@
             cursor: pointer;
             border-radius: 30px;
             transition: 0.3s;
-            z-index: 100;
+            text-align: center;
         }
-        #clearBtn:hover {
+
+        .btn:hover {
             background: #2d5a27;
             color: white;
             box-shadow: 0 4px 15px rgba(0,0,0,0.1);
         }
 
-        /* --- ADDED SELECTOR BOX STYLES --- */
         #toolbar {
             position: absolute;
             top: 20px;
@@ -46,6 +53,7 @@
             border: 1px solid #ddd;
             z-index: 100;
         }
+
         .flower-option {
             width: 45px;
             height: 45px;
@@ -59,11 +67,13 @@
             background: #fff;
             overflow: hidden;
         }
+
         .flower-option img {
             width: 35px;
             height: 35px;
             object-fit: contain;
         }
+
         .flower-option.selected {
             border-color: #2d5a27;
             background: #e8f5e9;
@@ -73,19 +83,25 @@
 <body>
     <div id="toolbar"></div>
 
-    <button id="clearBtn">Reset Garden</button>
+    <div id="controls">
+        <button id="bouquetBtn" class="btn">Bundle Bouquet</button>
+        <button id="clearBtn" class="btn">Reset Garden</button>
+    </div>
+
     <canvas id="gardenCanvas"></canvas>
 
     <script>
         const canvas = document.getElementById('gardenCanvas');
         const ctx = canvas.getContext('2d');
         const clearBtn = document.getElementById('clearBtn');
-        const toolbar = document.getElementById('toolbar'); // Added
+        const bouquetBtn = document.getElementById('bouquetBtn');
+        const toolbar = document.getElementById('toolbar');
+        
         let flowers = [];
         let clickCount = 0; 
-        let selectedImage = null; // Added to track selection
+        let selectedImage = null;
+        let isBouquet = false;
 
-        // --- IMAGE REPOSITORY (UPDATED TO 11) ---
         const imageSources = [
             'flower1.png', 'flower2.png', 'flower3.png', 'flower4.png', 'flower5.png',
             'flower6.png', 'flower7.png', 'flower8.png', 'flower9.png', 'flower10.png',
@@ -100,28 +116,19 @@
             img.src = src;
             img.onload = () => {
                 loadedImages[index] = img;
-                
-                // ADDED: Create exactly 10 boxes for the UI
                 if (index < 10) {
                     createOptionUI(img, index);
-                    if (index === 0) selectFlower(0); // Default to first
+                    if (index === 0) selectFlower(0);
                 }
-
                 if (loadedImages.filter(n => n).length === imageSources.length) shuffleQueue();
             };
-            img.onerror = () => console.warn("Image not found: " + src);
         });
 
-        // --- ADDED UI FUNCTIONS ---
         function createOptionUI(img, index) {
             const div = document.createElement('div');
             div.className = 'flower-option';
             div.id = 'opt-' + index;
-            div.onclick = (e) => {
-                e.stopPropagation();
-                selectFlower(index);
-            };
-            
+            div.onclick = (e) => { e.stopPropagation(); selectFlower(index); };
             const previewImg = document.createElement('img');
             previewImg.src = img.src;
             div.appendChild(previewImg);
@@ -158,19 +165,16 @@
         class Flower {
             constructor(x, y) {
                 this.x = x;
+                this.originX = x;
                 this.targetY = y;
                 this.groundY = canvas.height;
                 this.growth = 0; 
                 this.scale = 0;
                 this.opacity = 0;
-                
                 this.curve = (Math.random() - 0.5) * 200;
                 this.growthSpeed = 0.025 + Math.random() * 0.015;
                 this.popSpeed = 0.06;
-                
-                // UPDATED: Use selected image if available, otherwise fallback to random
                 this.img = selectedImage || getNextImage();
-                
                 this.leaves = [];
                 const leafCount = 2 + Math.floor(Math.random() * 2);
                 for(let i=0; i<leafCount; i++) {
@@ -196,6 +200,16 @@
                 } else if (this.scale < 1) {
                     this.scale += this.popSpeed; 
                     this.opacity += 0.1;
+                }
+
+                // Bouquet Animation Logic
+                if (isBouquet) {
+                    const centerX = canvas.width / 2;
+                    const centerY = canvas.height * 0.7;
+                    this.x += (centerX - this.x) * 0.05;
+                    this.targetY += (centerY - 150 - this.targetY) * 0.05;
+                    this.groundY += (centerY - this.groundY) * 0.05;
+                    this.curve *= 0.95; // Straighten stems slightly
                 }
             }
 
@@ -249,20 +263,23 @@
         }
 
         canvas.addEventListener('mousedown', (e) => {
+            if (isBouquet) return; // Disable planting while in bouquet mode
             clickCount++;
-            
-            if (clickCount === 5) {
-                console.log("5th click ignored.");
-                return; 
-            }
-
+            if (clickCount === 5) return; 
             flowers.push(new Flower(e.clientX, e.clientY));
         });
 
         clearBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             flowers = [];
-            clickCount = 0; 
+            clickCount = 0;
+            isBouquet = false;
+        });
+
+        bouquetBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            isBouquet = !isBouquet;
+            bouquetBtn.innerText = isBouquet ? "Release Garden" : "Bundle Bouquet";
         });
 
         loop();
