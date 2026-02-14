@@ -3,11 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>11-Image PNG Garden - No Wrap</title>
+    <title>11-Image PNG Garden - Zoom Selection</title>
     <style>
         body, html { margin: 0; padding: 0; overflow: hidden; background: #ffffff; }
         canvas { display: block; cursor: crosshair; }
         
+        /* UI Controls */
         #controls {
             position: absolute;
             top: 25px;
@@ -15,6 +16,13 @@
             display: flex;
             flex-direction: column;
             gap: 10px;
+            z-index: 100;
+        }
+
+        #bouquetChoiceBtn {
+            position: absolute;
+            bottom: 25px;
+            right: 25px;
             z-index: 100;
         }
 
@@ -36,13 +44,6 @@
         .btn:hover {
             background: #2d5a27;
             color: white;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-        }
-
-        .btn.active {
-            background: #e8f5e9;
-            border-color: #4caf50;
-            font-weight: bold;
         }
 
         #toolbar {
@@ -56,7 +57,6 @@
             padding: 8px;
             border-radius: 12px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-            border: 1px solid #ddd;
             z-index: 100;
         }
 
@@ -71,27 +71,107 @@
             align-items: center;
             justify-content: center;
             background: #fff;
-            overflow: hidden;
         }
 
-        .flower-option img {
-            width: 35px;
-            height: 35px;
+        .flower-option img { width: 35px; height: 35px; object-fit: contain; }
+        .flower-option.selected { border-color: #2d5a27; background: #e8f5e9; }
+
+        /* Modal / Selection Window */
+        #bouquetModal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #ffffff;
+            z-index: 200;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Helvetica', sans-serif;
+        }
+
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 30px;
+            transition: opacity 0.5s ease;
+        }
+
+        /* The Box and Image Transition Logic */
+        .bouquet-box {
+            width: 260px;
+            height: 260px;
+            border: 1px solid #e0e0e0;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            background: #fafafa;
+            position: relative;
+            transition: transform 0.3s ease, background 0.3s ease;
+        }
+
+        .bouquet-box img {
+            width: 90%;
+            height: 90%;
             object-fit: contain;
+            transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 10;
         }
 
-        .flower-option.selected {
-            border-color: #2d5a27;
-            background: #e8f5e9;
+        /* Zoomed State */
+        .bouquet-box.expanded img {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(2.5);
+            z-index: 300;
+            filter: drop-shadow(0 20px 40px rgba(0,0,0,0.15));
         }
+
+        /* Dim the other boxes when one is expanded */
+        .grid-container.dimmed .bouquet-box:not(.expanded) {
+            opacity: 0.2;
+            pointer-events: none;
+        }
+
+        .bouquet-box:hover:not(.expanded) {
+            border-color: #2d5a27;
+            background: #ffffff;
+        }
+
+        #backBtn {
+            margin-top: 60px;
+            transition: opacity 0.3s;
+        }
+
+        .hidden { opacity: 0; pointer-events: none; }
     </style>
 </head>
 <body>
+
     <div id="toolbar"></div>
 
     <div id="controls">
         <button id="seqBtn" class="btn">Sequential Random</button>
         <button id="clearBtn" class="btn">Reset Garden</button>
+    </div>
+
+    <button id="bouquetChoiceBtn" class="btn">Choose Your Bouquet</button>
+
+    <div id="bouquetModal">
+        <div class="grid-container" id="bouquetGrid">
+            <div class="bouquet-box" onclick="toggleZoom(this)"><img src="bouquet1.png"></div>
+            <div class="bouquet-box" onclick="toggleZoom(this)"><img src="bouquet2.png"></div>
+            <div class="bouquet-box" onclick="toggleZoom(this)"><img src="bouquet3.png"></div>
+            <div class="bouquet-box" onclick="toggleZoom(this)"><img src="bouquet4.png"></div>
+            <div class="bouquet-box" onclick="toggleZoom(this)"><img src="bouquet5.png"></div>
+            <div class="bouquet-box" onclick="toggleZoom(this)"><img src="bouquet6.png"></div>
+        </div>
+        <button id="backBtn" class="btn">Back to Garden</button>
     </div>
 
     <canvas id="gardenCanvas"></canvas>
@@ -102,6 +182,10 @@
         const clearBtn = document.getElementById('clearBtn');
         const seqBtn = document.getElementById('seqBtn');
         const toolbar = document.getElementById('toolbar');
+        const bouquetChoiceBtn = document.getElementById('bouquetChoiceBtn');
+        const bouquetModal = document.getElementById('bouquetModal');
+        const backBtn = document.getElementById('backBtn');
+        const bouquetGrid = document.getElementById('bouquetGrid');
         
         let flowers = [];
         let selectedImage = null;
@@ -121,10 +205,8 @@
             img.src = src;
             img.onload = () => {
                 loadedImages[index] = img;
-                if (index < 11) {
-                    if (index !== 4) {
-                        createOptionUI(img, index);
-                    }
+                if (index < 11 && index !== 4) {
+                    createOptionUI(img, index);
                     if (index === 0) selectFlower(0);
                 }
             };
@@ -151,6 +233,24 @@
             const selectedEl = document.getElementById('opt-' + index);
             if(selectedEl) selectedEl.classList.add('selected');
             selectedImage = loadedImages[index];
+        }
+
+        // --- Zoom Transition Logic ---
+        function toggleZoom(element) {
+            const isExpanded = element.classList.contains('expanded');
+            
+            // Remove expanded class from any others
+            document.querySelectorAll('.bouquet-box').forEach(box => box.classList.remove('expanded'));
+            
+            if (!isExpanded) {
+                element.classList.add('expanded');
+                bouquetGrid.classList.add('dimmed');
+                backBtn.classList.add('hidden');
+            } else {
+                element.classList.remove('expanded');
+                bouquetGrid.classList.remove('dimmed');
+                backBtn.classList.remove('hidden');
+            }
         }
 
         function resize() {
@@ -200,7 +300,6 @@
                     this.scale += this.popSpeed; 
                     this.opacity += 0.1;
                 }
-                // Removed bouquet movement logic here
                 this.x += (this.originX - this.x) * 0.05;
                 this.groundY += (canvas.height - this.groundY) * 0.05;
             }
@@ -255,27 +354,29 @@
         }
 
         canvas.addEventListener('mousedown', (e) => {
+            if (bouquetModal.style.display === 'flex') return;
             let x = e.clientX;
             let y = e.clientY;
 
             if (isSequential) {
-                if (sequenceIndex === 4) {
-                    sequenceIndex = 5; 
-                }
-
+                if (sequenceIndex === 4) sequenceIndex = 5;
                 const flowerImg = loadedImages[sequenceIndex];
                 flowers.push(new Flower(x, y, flowerImg));
-                
                 sequenceIndex = (sequenceIndex + 1) % loadedImages.length;
-                
-                if (sequenceIndex === 4) {
-                    sequenceIndex = 5;
-                }
+                if (sequenceIndex === 4) sequenceIndex = 5;
                 selectFlower(sequenceIndex);
             } else {
                 flowers.push(new Flower(x, y));
             }
         });
+
+        bouquetChoiceBtn.onclick = () => {
+            bouquetModal.style.display = 'flex';
+        };
+
+        backBtn.onclick = () => {
+            bouquetModal.style.display = 'none';
+        };
 
         seqBtn.addEventListener('click', (e) => {
             e.stopPropagation();
