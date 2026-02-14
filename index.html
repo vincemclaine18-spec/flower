@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>11-Image PNG Garden - Baby Blue Bouquet</title>
+    <title>11-Image PNG Garden - Sequential Loop</title>
     <style>
         body, html { margin: 0; padding: 0; overflow: hidden; background: #ffffff; }
         canvas { display: block; cursor: crosshair; }
@@ -37,6 +37,12 @@
             background: #2d5a27;
             color: white;
             box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .btn.active {
+            background: #e8f5e9;
+            border-color: #4caf50;
+            font-weight: bold;
         }
 
         #toolbar {
@@ -84,6 +90,7 @@
     <div id="toolbar"></div>
 
     <div id="controls">
+        <button id="seqBtn" class="btn">Sequential Random</button>
         <button id="bouquetBtn" class="btn">Bundle Bouquet</button>
         <button id="clearBtn" class="btn">Reset Garden</button>
     </div>
@@ -95,13 +102,17 @@
         const ctx = canvas.getContext('2d');
         const clearBtn = document.getElementById('clearBtn');
         const bouquetBtn = document.getElementById('bouquetBtn');
+        const seqBtn = document.getElementById('seqBtn');
         const toolbar = document.getElementById('toolbar');
         
         let flowers = [];
-        let clickCount = 0; 
         let selectedImage = null;
         let isBouquet = false;
         let wrapOpacity = 0; 
+        
+        // NEW STATES
+        let isSequential = false;
+        let sequenceIndex = 0;
 
         const imageSources = [
             'flower1.png', 'flower2.png', 'flower3.png', 'flower4.png', 'flower5.png',
@@ -110,18 +121,16 @@
         ];
         
         const loadedImages = [];
-        let imageQueue = []; 
 
         imageSources.forEach((src, index) => {
             const img = new Image();
             img.src = src;
             img.onload = () => {
                 loadedImages[index] = img;
-                if (index < 10) {
+                if (index < 11) {
                     createOptionUI(img, index);
                     if (index === 0) selectFlower(0);
                 }
-                if (loadedImages.filter(n => n).length === imageSources.length) shuffleQueue();
             };
         });
 
@@ -129,7 +138,12 @@
             const div = document.createElement('div');
             div.className = 'flower-option';
             div.id = 'opt-' + index;
-            div.onclick = (e) => { e.stopPropagation(); selectFlower(index); };
+            div.onclick = (e) => { 
+                e.stopPropagation(); 
+                isSequential = false; // Turn off sequence if manual choice is made
+                seqBtn.classList.remove('active');
+                selectFlower(index); 
+            };
             const previewImg = document.createElement('img');
             previewImg.src = img.src;
             div.appendChild(previewImg);
@@ -143,19 +157,6 @@
             selectedImage = loadedImages[index];
         }
 
-        function shuffleQueue() {
-            imageQueue = [...loadedImages];
-            for (let i = imageQueue.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [imageQueue[i], imageQueue[j]] = [imageQueue[j], imageQueue[i]];
-            }
-        }
-
-        function getNextImage() {
-            if (imageQueue.length === 0) shuffleQueue();
-            return imageQueue.pop();
-        }
-
         function resize() {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
@@ -164,7 +165,7 @@
         resize();
 
         class Flower {
-            constructor(x, y) {
+            constructor(x, y, forcedImg = null) {
                 this.x = x;
                 this.originX = x;
                 this.targetY = y;
@@ -175,7 +176,10 @@
                 this.curve = (Math.random() - 0.5) * 200;
                 this.growthSpeed = 0.025 + Math.random() * 0.015;
                 this.popSpeed = 0.06;
-                this.img = selectedImage || getNextImage();
+                
+                // Use the sequential image if provided, else current selection
+                this.img = forcedImg || selectedImage;
+
                 this.leaves = [];
                 const leafCount = 2 + Math.floor(Math.random() * 2);
                 for(let i=0; i<leafCount; i++) {
@@ -206,17 +210,13 @@
                 if (isBouquet) {
                     const centerX = canvas.width / 2;
                     const centerY = canvas.height * 0.75; 
-                    
                     const index = flowers.indexOf(this);
                     const total = Math.min(flowers.length, 100);
-                    
                     const maxSpread = 110; 
                     const angleStep = total > 1 ? maxSpread / (total - 1) : 0;
                     const targetAngle = (index * angleStep) - (maxSpread / 2);
-                    
                     const radius = 230; 
                     const rad = (targetAngle - 90) * (Math.PI / 180);
-                    
                     const tx = centerX + Math.cos(rad) * radius;
                     const ty = centerY + Math.sin(rad) * radius;
 
@@ -232,7 +232,6 @@
 
             draw() {
                 ctx.save();
-                
                 if (isBouquet && this.growth >= 1) {
                     const p = this.getPoint(1);
                     ctx.beginPath();
@@ -281,14 +280,10 @@
 
         function drawWrap() {
             if (wrapOpacity <= 0) return;
-            
             const cx = canvas.width / 2;
             const cy = canvas.height * 0.75;
-            
             ctx.save();
             ctx.globalAlpha = wrapOpacity;
-
-            // Outer Baby Blue Wrap (#89CFF0)
             ctx.fillStyle = '#89CFF0';
             ctx.beginPath();
             ctx.moveTo(cx, cy);
@@ -296,15 +291,12 @@
             ctx.lineTo(cx - 180, cy - 300);
             ctx.lineTo(cx, cy - 120);
             ctx.fill();
-
             ctx.beginPath();
             ctx.moveTo(cx, cy);
             ctx.lineTo(cx + 240, cy - 200);
             ctx.lineTo(cx + 180, cy - 300);
             ctx.lineTo(cx, cy - 120);
             ctx.fill();
-
-            // Inner Silk Fold (Lighter Baby Blue - #B2DAFA)
             ctx.fillStyle = '#B2DAFA';
             ctx.beginPath();
             ctx.moveTo(cx, cy);
@@ -312,30 +304,24 @@
             ctx.lineTo(cx + 100, cy - 220);
             ctx.quadraticCurveTo(cx + 120, cy - 140, cx, cy);
             ctx.fill();
-            
-            // Ribbon Pivot Point
             ctx.fillStyle = '#E0F2F1';
             ctx.beginPath();
             ctx.arc(cx, cy, 18, 0, Math.PI * 2);
             ctx.fill();
-            ctx.strokeStyle = '#4682B4'; // Steel Blue
+            ctx.strokeStyle = '#4682B4';
             ctx.lineWidth = 2;
             ctx.stroke();
-
             ctx.restore();
         }
 
         function loop() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
             if (isBouquet && flowers.length > 0) {
                 wrapOpacity = Math.min(wrapOpacity + 0.05, 1);
             } else {
                 wrapOpacity = Math.max(wrapOpacity - 0.05, 0);
             }
-
             drawWrap(); 
-
             flowers.forEach(f => {
                 f.update();
                 f.draw();
@@ -343,18 +329,45 @@
             requestAnimationFrame(loop);
         }
 
+        // Handle Click Logic
         canvas.addEventListener('mousedown', (e) => {
             if (isBouquet) return; 
-            clickCount++;
-            flowers.push(new Flower(e.clientX, e.clientY));
+
+            let x = e.clientX;
+            let y = e.clientY;
+
+            if (isSequential) {
+                // Pick next in sequence
+                const flowerImg = loadedImages[sequenceIndex];
+                flowers.push(new Flower(x, y, flowerImg));
+                
+                // Update loop sequence
+                sequenceIndex = (sequenceIndex + 1) % loadedImages.length;
+                
+                // Update UI to show what's next
+                selectFlower(sequenceIndex);
+            } else {
+                flowers.push(new Flower(x, y));
+            }
+        });
+
+        // Sequence Mode Toggle
+        seqBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            isSequential = !isSequential;
+            seqBtn.classList.toggle('active');
+            if (isSequential) {
+                sequenceIndex = 0; // Reset loop to start
+                selectFlower(0);
+            }
         });
 
         clearBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             flowers = [];
-            clickCount = 0;
             isBouquet = false;
             wrapOpacity = 0;
+            sequenceIndex = 0;
             bouquetBtn.innerText = "Bundle Bouquet";
         });
 
